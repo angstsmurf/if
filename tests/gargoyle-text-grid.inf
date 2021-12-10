@@ -1,0 +1,199 @@
+! Tests for Gargoyle's text formatting extensions
+
+! New definitions
+
+Constant gestalt_GarglkText = $1100;
+
+[ garglk_set_zcolors _vararg_count;
+    ! garglk_set_zcolors( fg, bg )
+    @glk $1100 _vararg_count 0;
+    return 0;
+];
+
+[ garglk_set_zcolors_stream _vararg_count;
+    ! garglk_set_zcolors_stream( str, fg, bg )
+    @glk $1101 _vararg_count 0;
+    return 0;
+];
+
+[ garglk_set_reversevideo _vararg_count;
+    ! garglk_set_reversevideo( reverse )
+    @glk $1102 _vararg_count 0;
+    return 0;
+];
+
+[ garglk_set_reversevideo_stream _vararg_count;
+    ! garglk_set_reversevideo_stream( str, reverse )
+    @glk $1103 _vararg_count 0;
+    return 0;
+];
+
+! Test code
+
+Global mainwin = 0;
+Array gg_event --> 4;
+
+Array colours --> $ff0000 $ff3000 $ff6000 $ff9000 $ffc000 $fff000 $deff00 $aeff00
+    $7eff00 $4eff00 $1eff00 $00ff12 $00ff42 $00ff72 $00ffa2 $00ffd2
+    $00fcff $00ccff $009cff $006cff $003cff $000cff $2400ff $5400ff
+    $8400ff $b400ff $e400ff $ff00ea $ff00ba $ff008a $ff005a $ff002a;
+
+[ Wait;
+    ! Wait for any key
+    glk($00D2, mainwin); ! request_char_event
+    while (1) {
+        glk($00C0, gg_event); ! select
+        if (gg_event-->0 == 2 && gg_event-->1 == mainwin) {
+            return;
+        }
+    }
+];
+
+[ Reset;
+    garglk_set_zcolors( -1, -1 );
+    glk(177, 0, 0, 8); !glk_stylehint_clear normal background
+];
+
+[ Main val str i;
+
+    @setiosys 2 0; ! select Glk I/O system
+
+    ! Set user1 and user2 styles
+    glk( 176, 0, 9, 6, 0 ); !glk_stylehint_set user1 preformatted
+    glk( 176, 0, 9, 7, $00ff00 ); !glk_stylehint_set user1 green
+    glk( 176, 0, 9, 9, 0 ); !glk_stylehint_set user1 reverse off
+    glk( 176, 0, 10, 6, 0 ); !glk_stylehint_set user2 preformatted
+    glk( 176, 0, 10, 9, 1 ); !glk_stylehint_set user2 reverse on
+
+    mainwin = glk( 35, 0, 0, 0, 4, 0 ); ! glk_window_open
+    glk( 47, mainwin ); ! glk_set_window
+    str = glk( 44, mainwin ); !glk_window_get_stream
+
+    print "Tests for Gargoyle's text formatting extensions^";
+    print "https://curiousdannii.github.io/if/gargoyle.html^^";
+
+    val = glk( 4, gestalt_GarglkText, 0 ); !glk_gestalt
+
+    if ( ~~val )
+    {
+        print "Interpreter does not claim to support Gargoyle's text formatting extensions.^^";
+    }
+    else
+    {
+        print "Interpreter claims to support Gargoyle's text formatting extensions.^^";
+
+        print "Testing colours. You should see a pretty rainbow.^^";
+        glk( 134, 2 ); !glk_set_style preformatted
+        for ( i = 0 : i < 16 : i++ )
+        {
+            val = colours-->i;
+            garglk_set_zcolors( -2, val );
+            print " ";
+        }
+        for ( i = 16 : i < 32 : i++ )
+        {
+            val = colours-->i;
+            garglk_set_zcolors_stream( str, -2, val );
+            print " ";
+        }
+        garglk_set_zcolors_stream( str, -2, -1 );
+        glk( 134, 0 ); !glk_set_style normal
+
+        print "^^Testing reverse mode. You should see a striped bar.^^";
+
+        glk( 134, 2 ); !glk_set_style preformatted
+        garglk_set_zcolors( $ff0000, $0000ff );
+        print "    ";
+        garglk_set_reversevideo( 1 );
+        print "    ";
+        garglk_set_reversevideo( 0 );
+        print "    ";
+        garglk_set_reversevideo_stream( str, 1 );
+        print "    ";
+        garglk_set_reversevideo_stream( str, 0 );
+        print "  ";
+        garglk_set_zcolors( -1, -1 );
+
+        ! Now use the user1 and user2 styles to check that the stylehints follow Gargoyle's rules:
+        ! Colour style hints do not overwrite manually specified styles
+        ! But reverse mode works differently: reverse mode is used if either the style or garglk_set_reversevideo turns it on
+
+        garglk_set_zcolors( $ff0000, $0000ff );
+        glk( 134, 9 ); !glk_set_style user1
+        print "  ";
+        garglk_set_reversevideo( 1 );
+        print "  ";
+        glk( 134, 9 ); !glk_set_style user1
+        print "  ";
+        garglk_set_reversevideo( 0 );
+        print "    ";
+        glk( 134, 10 ); !glk_set_style user2
+        print "  ";
+        garglk_set_reversevideo( 0 );
+        print "  ";
+
+        garglk_set_zcolors( -1, -1 );
+        glk( 134, 0 ); !glk_set_style normal
+
+        print "^^Press any key to begin the screen clearing tests.";
+        Wait();
+
+        ! Test 1: Setting window margins with a stylehint
+        glk(176, 0, 0, 8, $1F75FE); !glk_stylehint_set normal background Crayola blue
+        glk(42, mainwin); !glk_window_clear
+        print "Test 1: Setting window margins with a stylehint.^^If supported, the window margin should be Crayola blue. This window should still have the default background however.^^Press any key to continue.";
+        Wait();
+
+        ! Test 2: Setting window margins with garglk_set_zcolors, then a stylehint
+        Reset();
+        garglk_set_zcolors(-1, $800020);
+        glk(176, 0, 0, 8, $1F75FE); !glk_stylehint_set normal background Crayola blue
+        glk(42, mainwin); !glk_window_clear
+        print "Test 2: Setting window margins with garglk_set_zcolors, then a stylehint.^^If supported, this window should have a burgandy background, while the window margin should be Crayola blue.^^Press any key to continue.";
+        Wait();
+
+        ! Test 3: Setting window margins with a stylehint, then garglk_set_zcolors
+        Reset();
+        glk(176, 0, 0, 8, $1F75FE); !glk_stylehint_set normal background Crayola blue
+        garglk_set_zcolors(-1, $800020);
+        glk(42, mainwin); !glk_window_clear
+        print "Test 3: Setting window margins with a stylehint, then with garglk_set_zcolors.^^If supported, this window and the window margin should both be burgandy.^^Press any key to continue.";
+        Wait();
+
+        ! Test 4: Set foreground colour too
+        Reset();
+        ! Set colours to Jonquil on burgandy
+        garglk_set_zcolors($F4CA16, $800020);
+        glk(42, mainwin); !glk_window_clear
+        print "Test 4: Foreground colour and text styles.^^This message should be shown in jonquil on burgandy.^^";
+        print "Test some styles: ";
+        glk(134, 4); !glk_set_style subheader
+        print "subheader/bold ";
+        glk(134, 1); !glk_set_style emphasized
+        print "emphasized/italics ";
+        glk(134, 2); !glk_set_style preformatted
+        print "preformatted ";
+        glk(134, 0); !glk_set_style normal
+        print "^^Press any key to continue.";
+        Wait();
+
+        ! Test 5: Use garglk_set_zcolors after clearing the window
+        Reset();
+        glk(42, mainwin); !glk_window_clear
+        print "Test 5: Use garglk_set_zcolors after clearing the window.^^The function call should have no effect.^^Press any key to continue.";
+        garglk_set_zcolors($F4CA16, $800020);
+        Wait();
+
+
+        ! Test 6: Test clear styles after clearing the window
+        Reset();
+        garglk_set_zcolors($F4CA16, $800020);
+        glk(42, mainwin); !glk_window_clear
+        print "Test 6: Test clearing styles after clearing the window.^^This window should be jonquil on burgandy.";
+        Reset();
+
+        print "^^End of tests.";
+    }
+
+    Wait();
+];
